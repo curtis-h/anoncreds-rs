@@ -169,7 +169,7 @@ where
     trace!(
         "create_credential_definition <<< cred_def: {:?}, cred_def: {:?}, key_correctness_proof: {:?}",
         cred_def,
-        secret!(&cred_def_private),
+        cred_def_private,
         cred_key_proof
     );
 
@@ -286,7 +286,7 @@ where
     trace!(
         "create_revocation_registry <<< revoc_reg_def: {:?}, private: {:?}",
         revoc_reg_def,
-        secret!(&revoc_def_priv),
+        revoc_def_priv,
     );
 
     Ok((revoc_reg_def, revoc_def_priv))
@@ -693,7 +693,7 @@ pub fn create_credential(
 ) -> Result<Credential> {
     trace!("create_credential >>> cred_def: {:?}, cred_def_private: {:?}, cred_offer.nonce: {:?}, cred_request: {:?},\
             cred_values: {:?}, revocation_config: {:?}",
-            cred_def, secret!(&cred_def_private), &cred_offer.nonce, &cred_request, secret!(&cred_values), revocation_config,
+            cred_def, cred_def_private, &cred_offer.nonce, &cred_request, &cred_values, revocation_config,
             );
 
     let cred_public_key = cred_def.get_public_key().map_err(err_map!(
@@ -810,7 +810,7 @@ pub fn create_credential(
 
     trace!(
         "create_credential <<< credential {:?}",
-        secret!(&credential),
+        credential,
     );
 
     Ok(credential)

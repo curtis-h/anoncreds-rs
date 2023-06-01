@@ -526,7 +526,7 @@ pub fn create_presentation(
         identifiers,
     };
 
-    trace!("create_proof <<< full_proof: {:?}", secret!(&full_proof));
+    trace!("create_proof <<< full_proof: {:?}", &full_proof);
 
     Ok(full_proof)
 }
