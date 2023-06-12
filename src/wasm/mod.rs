@@ -129,27 +129,21 @@ pub fn anoncreds_validate_credential_definition_from_json(
     cred_def.validate().map(|_| true).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
-fn create_schema() -> Schema {
-    let attribute_names: &[&str] = &["name", "age"];
 
-    let schema = issuer::create_schema(
-        "schema name",
-        "1.0",
-        "did:web:xyz",
-        attribute_names.into()
-    ).expect("Unable to create schema");
-
-    return schema;
-}
-
-
-// custom -----
+// --- ISSUER ---
 
 #[wasm_bindgen(js_name = issuerCreateSchema)]
-pub fn issuer_create_schema() -> JsValue {
-    let schema = create_schema();
+pub fn issuer_sample_schema() -> JsValue {
+  let attribute_names: &[&str] = &["name", "age"];
 
-    return serde_wasm_bindgen::to_value(&schema).unwrap();
+  let schema = issuer::create_schema(
+      "schema name",
+      "1.0",
+      "did:web:xyz",
+      attribute_names.into()
+  ).expect("Unable to create schema");
+
+  return serde_wasm_bindgen::to_value(&schema).unwrap();
 }
 
 #[wasm_bindgen(js_name = issuerCreateCredentialOffer)]
@@ -176,44 +170,6 @@ pub fn issuer_create_credential_offer(jsSchema: JsValue) -> Vec<JsValue> {
     let js_cred_def_priv = serde_wasm_bindgen::to_value(&cred_def_priv).unwrap();
     
     vec![js_cred_offer, js_cred_def, js_cred_def_priv]
-}
-
-#[wasm_bindgen(js_name = proverCreateLinkSecret)]
-pub fn prover_create_link_secret() -> String {
-    let secret = prover::create_link_secret().expect("Unable to create link secret");
-
-    let secretString = secret.try_into().expect("Unable to convert");
-
-    return secretString;
-}
-
-#[wasm_bindgen(js_name = proverCreateCredentialRequest)]
-pub fn prover_create_credential_request(
-    jsCredOffer: JsValue,
-    jsCredDef: JsValue,
-    jsLinkSecret: &str,
-) -> Vec<JsValue> {
-    let cred_def: CredentialDefinition = serde_wasm_bindgen::from_value(jsCredDef).unwrap();
-    let credential_offer: CredentialOffer = serde_wasm_bindgen::from_value(jsCredOffer).unwrap();
-    // let link_secret: LinkSecret = serde_wasm_bindgen::from_value(jsLinkSecret).unwrap();
-
-    let link_secret = LinkSecret::try_from(jsLinkSecret).expect("convert error");
-
-    let (credential_request, credential_request_metadata) =
-        prover::create_credential_request(
-            Some("entropy"),
-            None,
-            &cred_def,
-            &link_secret,
-            "my-secret-id",
-            &credential_offer,
-        )
-        .expect("Unable to create credential request");
-
-    let js_cred_req = serde_wasm_bindgen::to_value(&credential_request).unwrap();
-    let js_cred_meta = serde_wasm_bindgen::to_value(&credential_request_metadata).unwrap();
-
-    vec![js_cred_req, js_cred_meta]
 }
 
 #[wasm_bindgen(js_name = issuerCreateCredential)]
@@ -251,8 +207,128 @@ pub fn issuer_create_credential(
 }
 
 
+// --- PROVER ---
+
+#[wasm_bindgen(js_name = proverCreateLinkSecret)]
+pub fn prover_create_link_secret() -> String {
+    let secret = prover::create_link_secret().expect("Unable to create link secret");
+    let secretString = secret.try_into().expect("Unable to convert link secret");
+
+    return secretString;
+}
+
+/**
+ * 
+ */
+#[wasm_bindgen(js_name = proverCreateCredentialRequest)]
+pub fn prover_create_credential_request(
+  jsCredOffer: JsValue,
+  jsCredDef: JsValue,
+  jsLinkSecret: &str,
+  jsLinkSecretId: &str
+) -> Vec<JsValue> {
+  let credential_offer: CredentialOffer = serde_wasm_bindgen::from_value(jsCredOffer.clone()).unwrap();
+  let cred_def: CredentialDefinition = serde_wasm_bindgen::from_value(jsCredDef).unwrap();
+  let link_secret = LinkSecret::try_from(jsLinkSecret).unwrap();
+  let link_secret_id = jsLinkSecretId;
+  
+  let (credential_request, credential_request_metadata) =
+  prover::create_credential_request(
+    // TODO - guessing this should be randomised / seeded?
+    Some("entropy"),
+    // TODO - find out difference between using ProverDID or Entropy (one or other)
+    None,
+    &cred_def,
+    &link_secret,
+    &link_secret_id,
+    &credential_offer,
+  )
+  .expect("Unable to create credential request");
+
+  let js_cred_req = serde_wasm_bindgen::to_value(&credential_request).unwrap();
+  let js_cred_meta = serde_wasm_bindgen::to_value(&credential_request_metadata).unwrap();
+
+  vec![js_cred_req, js_cred_meta]
+}
+
+#[wasm_bindgen(js_name = proverProcessCredential)]
+pub fn prover_process_credential(
+  jsSchema: JsValue,
+  jsCredDef: JsValue,
+  jsCredential: JsValue,
+  jsCredReqMeta: JsValue,
+  jsLinkSecret: &str,
+) -> JsValue {
+  let mut credential: Credential = serde_wasm_bindgen::from_value(jsCredential).unwrap();
+  let cred_req_meta: CredentialRequestMetadata = serde_wasm_bindgen::from_value(jsCredReqMeta).unwrap();
+  let cred_def: CredentialDefinition = serde_wasm_bindgen::from_value(jsCredDef).unwrap();
+  let link_secret = LinkSecret::try_from(jsLinkSecret).unwrap();
+
+  prover::process_credential(
+      &mut credential,
+      &cred_req_meta,
+      &link_secret,
+      &cred_def,
+      None
+  )
+  .expect("Unable to process the credential");
+
+  serde_wasm_bindgen::to_value(&credential).unwrap()
+}
+
 #[wasm_bindgen(js_name = proverCreatePresentation)]
 pub fn prover_create_presentation(
+  jsPresentationRequest: JsValue,
+  jsSchema: JsValue,
+  jsCredDef: JsValue,
+  jsProcessedCredential: JsValue,
+  jsLinkSecret: &str,
+) -> JsValue {
+  let mut credential: Credential = serde_wasm_bindgen::from_value(jsProcessedCredential).unwrap();
+  let schema: Schema = serde_wasm_bindgen::from_value(jsSchema).unwrap();
+  let cred_def: CredentialDefinition = serde_wasm_bindgen::from_value(jsCredDef).unwrap();
+  let link_secret = LinkSecret::try_from(jsLinkSecret).expect("convert error");
+  let pres_request = serde_json::from_value(serde_wasm_bindgen::from_value(jsPresentationRequest).unwrap()).expect("Unable to create presentation request");
+  let nonce = verifier::generate_nonce().expect("Unable to generate nonce");
+
+  let mut schemas = HashMap::new();
+  let schema_id = SchemaId::new_unchecked("did:web:xyz/resource/schema");
+  schemas.insert(&schema_id, &schema);
+
+  let mut cred_defs = HashMap::new();
+  let cred_def_id = CredentialDefinitionId::new_unchecked("did:web:xyz/resource/cred-def");
+  cred_defs.insert(&cred_def_id, &cred_def);
+
+  let mut present = PresentCredentials::default();
+  let mut cred1 = present.add_credential(
+      &credential,
+      None,
+      None,
+  );
+  cred1.add_requested_attribute("attr1_referent", true);
+  cred1.add_requested_predicate("predicate1_referent");
+
+  let presentation =
+      prover::create_presentation(&pres_request,
+                                  present,
+                                  None,
+                                  &link_secret,
+                                  &schemas,
+                                  &cred_defs
+                                  ).expect("Unable to create presentation");
+
+  serde_wasm_bindgen::to_value(&presentation).unwrap()
+}
+
+#[wasm_bindgen(js_name = verifierGenerateNonce)]
+pub fn verifier_generate_nonce() -> JsValue {
+  let nonce = verifier::generate_nonce().unwrap();
+
+  serde_wasm_bindgen::to_value(&nonce).unwrap()
+}
+
+#[wasm_bindgen(js_name = proverCreatePresentation_old)]
+pub fn prover_create_presentation_old(
     jsSchema: JsValue,
     jsCredDef: JsValue,
     jsCredential: JsValue,
@@ -263,8 +339,6 @@ pub fn prover_create_presentation(
     let cred_def: CredentialDefinition = serde_wasm_bindgen::from_value(jsCredDef).unwrap();
     let mut credential: Credential = serde_wasm_bindgen::from_value(jsCredential).unwrap();
     let cred_req_meta: CredentialRequestMetadata = serde_wasm_bindgen::from_value(jsCredReqMeta).unwrap();
-    // let link_secret: LinkSecret = serde_wasm_bindgen::from_value(jsLinkSecret).unwrap();
-    // let link_secret = prover_create_link_secret();
     let link_secret = LinkSecret::try_from(jsLinkSecret).expect("convert error");
 
     prover::process_credential(
@@ -323,6 +397,8 @@ pub fn prover_create_presentation(
 
     serde_wasm_bindgen::to_value(&presentation).unwrap()
 }
+
+// --- VERIFIER ---
 
 #[wasm_bindgen(js_name = verifierVerifyPresentation)]
 pub fn verifier_verify_presentation(

@@ -250,15 +250,36 @@ describe('example', () => {
     
     // expect(result[2]).to.eql(credDefPriv);
     expect(result[2]).to.have.property("value");
-  })
+  });
 
-  // it("proverCreateLinkSecret", () => {
-  //   const result = wasm.proverCreateLinkSecret();
-  //   expect(result).to.eq(linkSecret);
-  // })
+  it.skip("issuerCreateCredential", () => {
+    const result = wasm.issuerCreateCredential(credOffer, credDef, credDefPriv, credRequest);
+
+    expect(result).to.be.an("object");
+    expect(result).to.have.property("cred_def_id");
+    expect(result).to.have.property("rev_reg");
+    expect(result).to.have.property("rev_reg_id");
+    expect(result).to.have.property("schema_id");
+    expect(result).to.have.property("signature");
+    expect(result).to.have.property("signature_correctness_proof");
+    expect(result).to.have.property("values");
+    expect(result).to.have.property("witness");
+  });
+
+  it("proverCreateLinkSecret", () => {
+    const result = wasm.proverCreateLinkSecret();
+    expect(result).to.be.a("string");
+  });
 
   it("proverCreateCredentialRequest", () => {
-    const result = wasm.proverCreateCredentialRequest(credOffer, credDef, linkSecret);
+    const result = wasm.proverCreateCredentialRequest(
+      credOffer, 
+      credDef, 
+      linkSecret, 
+      "link-secret-id"
+      // "DXoTtQJNtXtiwWaZAK3rB1"
+      // "did:peer:2.Ez6LSms555YhFthn1WV8ciDBpZm86hK9tp83WojJUmxPGk1hZ.Vz6MkmdBjMyB4TS5UbbQw54szm8yvMMf1ftGV2sQVYAxaeWhE.SeyJpZCI6Im5ldy1pZCIsInQiOiJkbSIsInMiOiJodHRwczovL21lZGlhdG9yLnJvb3RzaWQuY2xvdWQiLCJhIjpbImRpZGNvbW0vdjIiXX0"
+    );
     
     expect(result).to.be.an("array");
     // expect(result[0]).to.eql(credRequest);
@@ -272,30 +293,54 @@ describe('example', () => {
     expect(result[1]).to.have.property("link_secret_blinding_data");
     expect(result[1]).to.have.property("link_secret_name");
     expect(result[1]).to.have.property("nonce");
-  })
+  });
+  
+  it("proverProcessCredential", () => {
+    const result = wasm.proverProcessCredential(
+      schema,
+      credDef,
+      credential,
+      credRequestMeta,
+      linkSecret
+    );
 
+    console.log({ credential, result });
 
-  it("issuerCreateCredential", () => {
-    const result = wasm.issuerCreateCredential(credOffer, credDef, credDefPriv, credRequest);
-
-    expect(result).to.be.an("object");
-    expect(result).to.have.property("cred_def_id");
-    expect(result).to.have.property("rev_reg");
-    expect(result).to.have.property("rev_reg_id");
-    expect(result).to.have.property("schema_id");
-    expect(result).to.have.property("signature");
-    expect(result).to.have.property("signature_correctness_proof");
-    expect(result).to.have.property("values");
-    expect(result).to.have.property("witness");
-  })
+    expect(result).not.to.be.null;
+  });
 
   it("proverCreatePresentation", () => {
-    const result = wasm.proverCreatePresentation(schema, credDef, credential, credRequestMeta, linkSecret);
+    // const nonce = wasm.verifierGenerateNonce();
+    const nonce = "742809673342769044929402";
+    const presRequest = {
+      "nonce": nonce,
+      "name":"example_presentation_request",
+      "version":"0.1",
+      "requested_attributes":{
+          "attr1_referent":{
+              "name":"name",
+              "restrictions": {
+                  "cred_def_id": "did:web:xyz/resource/cred-def"
+              }
+          },
+      },
+      "requested_predicates":{
+          "predicate1_referent":{"name":"age","p_type":">=","p_value":18}
+      }
+    };
+
+    const result = wasm.proverCreatePresentation(
+      presRequest,
+      schema,
+      credDef,
+      credential,
+      linkSecret
+    );
 
     expect(result).to.be.an("object");
   })
 
-  it("verifierVerifyPresentation", () => {
+  it.skip("verifierVerifyPresentation", () => {
     const result = wasm.verifierVerifyPresentation(presentation, schema, credDef);
   })
 

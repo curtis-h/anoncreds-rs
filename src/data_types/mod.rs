@@ -1,5 +1,5 @@
-#[cfg(feature = "wasm")]
-mod wasm;
+// #[cfg(feature = "wasm")]
+// mod wasm;
 
 /// Credential definitions
 pub mod cred_def;
