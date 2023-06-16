@@ -336,23 +336,25 @@ describe('example', () => {
       "link-secret-id"
     );
     
-    expect(result).to.be.an("array");
-    // expect(result[0]).to.eql(credRequest);
+    expect(result).to.be.an("array").to.have.length(3);
+    // credRequest
     expect(result[0]).to.have.property("blinded_ms");
     expect(result[0]).to.have.property("blinded_ms_correctness_proof");
     expect(result[0]).to.have.property("cred_def_id");
     expect(result[0]).to.have.property("entropy");
     expect(result[0]).to.have.property("nonce");
 
-    // expect(result[1]).to.eql(credRequestMeta);
+    // credRequestMeta
     expect(result[1]).to.have.property("link_secret_blinding_data");
     expect(result[1]).to.have.property("link_secret_name");
     expect(result[1]).to.have.property("nonce");
+
+    // entropy
+    expect(result[2]).to.be.a("string");
   });
-  
+
   it("proverProcessCredential", () => {
     const result = wasm.proverProcessCredential(
-      schema,
       credDef,
       credentialIssued,
       credRequestMeta,
@@ -368,7 +370,7 @@ describe('example', () => {
     expect(result.values.get("name")).to.deep.eq(credentialIssued.values[1][1]);
   });
 
-  it.only("proverCreatePresentation", () => {
+  it("proverCreatePresentation", () => {
     // const nonce = wasm.verifierGenerateNonce();
     const nonce = "742809673342769044929402";
     const presRequest = {
@@ -388,10 +390,19 @@ describe('example', () => {
       }
     };
 
+    const schemaId = "did:web:xyz/resource/schema";
+    const schemas = {
+      [schemaId]: schema
+    };
+
+    const credDefs = {
+      "did:web:xyz/resource/cred-def": credDef
+    };
+
     const result = wasm.proverCreatePresentation(
       presRequest,
-      schema,
-      credDef,
+      schemas,
+      credDefs,
       credential,
       linkSecret
     );
@@ -404,9 +415,6 @@ describe('example', () => {
 
     expect(result).to.have.property("requested_proof").to.be.an("object");
     expect(result.requested_proof).to.have.property("predicates");
-
-    console.log([...result.requested_proof.predicates]);
-
     expect(result.requested_proof).to.have.property("revealed_attrs");
     expect(result.requested_proof).to.have.property("self_attested_attrs");
     expect(result.requested_proof).to.have.property("unrevealed_attrs");
@@ -415,6 +423,7 @@ describe('example', () => {
     expect(result.identifiers[0]).to.have.property("cred_def_id");
     expect(result.identifiers[0]).to.have.property("schema_id");
   });
+
 
   it.skip("verifierVerifyPresentation", () => {
     const result = wasm.verifierVerifyPresentation(presentation, schema, credDef);

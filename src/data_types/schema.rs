@@ -1,7 +1,5 @@
 use crate::impl_anoncreds_object_identifier;
 
-use wasm_bindgen::prelude::*;
-
 use std::collections::HashSet;
 
 use super::issuer_id::IssuerId;
